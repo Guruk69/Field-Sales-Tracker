@@ -1,0 +1,6 @@
+
+{
+  "name": "Field Sales Tracker",
+  "description": "A minimal, structured field-sales tracking application designed for single-user productivity. It manages shops, append-only updates, and date-based tasks with a clear mobile-first interface.",
+  "requestFramePermissions": []
+}
