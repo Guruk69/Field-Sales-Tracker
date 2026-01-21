@@ -4,14 +4,16 @@ export enum ShopStatus {
   WARM = 'Warm',
   HOT = 'Hot',
   COLD = 'Cold',
-  DEAD = 'Dead'
+  DEAD = 'Dead',
+  CLOSED = 'Closed',
 }
 
 export enum TaskType {
   VISIT = 'Visit',
   WHATSAPP = 'Send WhatsApp Photos',
   FOLLOW_UP = 'Follow-up',
-  CALL = 'Call'
+  CALL = 'Call',
+  GETTESTIMONIAL = 'Get Testimonial'
 }
 
 export enum TaskStatus {
@@ -42,4 +44,5 @@ export interface Task {
   type: TaskType;
   dueDate: string;
   status: TaskStatus;
+  note?: string;
 }
