@@ -5,16 +5,15 @@ import { ShopListView } from './views/ShopListView';
 import { ShopDetailView } from './views/ShopDetailView';
 import { Navbar } from './components/Navbar';
 import { CreateTaskModal } from './components/__temp';
+import { collection, getDocs, addDoc, onSnapshot } from "firebase/firestore";
+import { db } from "./src/firebase";
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'shops'>('dashboard');
   const [selectedShopId, setSelectedShopId] = useState<string | null>(null);
   const [showCreateTask, setShowCreateTask] = useState(false);
 
-  const [shops, setShops] = useState<Shop[]>(() => {
-    const saved = localStorage.getItem('fs_shops');
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [shops, setShops] = useState<Shop[]>([]);
 
   const [tasks, setTasks] = useState<Task[]>(() => {
     const saved = localStorage.getItem('fs_tasks');
@@ -22,8 +21,18 @@ const App: React.FC = () => {
   });
 
   useEffect(() => {
-    localStorage.setItem('fs_shops', JSON.stringify(shops));
-  }, [shops]);
+  const unsub = onSnapshot(collection(db, "shops"), (snapshot) => {
+    const data = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    })) as Shop[];
+
+    setShops(data);
+  });
+
+  return () => unsub();
+}, []);
+
 
   useEffect(() => {
     localStorage.setItem('fs_tasks', JSON.stringify(tasks));
@@ -96,8 +105,29 @@ const App: React.FC = () => {
     [shops, selectedShopId]
   );
 
+  const testFirestore = async () => {
+    try {
+      await addDoc(collection(db, "test"), {
+        message: "Firebase connected successfully",
+        createdAt: new Date(),
+      });
+      alert("Firestore write successful!");
+    } catch (err) {
+      console.error(err);
+      alert("Firestore write failed");
+    }
+  };
+
+
   return (
     <div className="min-h-screen bg-gray-50 pb-20 md:pb-0 md:pt-16">
+      <button
+        onClick={testFirestore}
+        className="bg-blue-600 text-white px-4 py-2 rounded"
+      >
+        Test Firestore
+      </button>
+
       <Navbar
         activeTab={activeTab}
         setActiveTab={(tab) => {
@@ -119,6 +149,7 @@ const App: React.FC = () => {
               setActiveTab('shops');
             }}
             onOpenCreateTask={() => setShowCreateTask(true)}
+
           />
         )}
 

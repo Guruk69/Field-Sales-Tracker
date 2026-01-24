@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { Task, Shop, TaskStatus } from '../types';
 import { isToday, isOverdue } from '../utils';
+// import { testFirestore} from '../App.tsx'
 
 interface DashboardViewProps {
   tasks: Task[];
@@ -53,6 +54,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             Pending tasks and missed follow-ups.
           </p>
         </div>
+       
+
 
         <button
           onClick={onOpenCreateTask}
