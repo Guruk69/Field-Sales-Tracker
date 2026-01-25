@@ -5,100 +5,138 @@ import { ShopListView } from './views/ShopListView';
 import { ShopDetailView } from './views/ShopDetailView';
 import { Navbar } from './components/Navbar';
 import { CreateTaskModal } from './components/__temp';
-import { collection, getDocs, addDoc, onSnapshot } from "firebase/firestore";
-import { db } from "./src/firebase";
+// import { doc, updateDoc, arrayUnion } from 'firebase/firestore';
+// import { collection, addDoc, onSnapshot } from 'firebase/firestore';
+import { db } from './src/firebase';
+import {
+  collection,
+  addDoc,
+  onSnapshot,
+  updateDoc,
+  doc,
+  deleteDoc,
+  serverTimestamp,
+  arrayUnion
+} from "firebase/firestore";
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'shops'>('dashboard');
   const [selectedShopId, setSelectedShopId] = useState<string | null>(null);
   const [showCreateTask, setShowCreateTask] = useState(false);
 
+  // 🔥 SINGLE SOURCE OF TRUTH
   const [shops, setShops] = useState<Shop[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
 
-  const [tasks, setTasks] = useState<Task[]>(() => {
-    const saved = localStorage.getItem('fs_tasks');
-    return saved ? JSON.parse(saved) : [];
-  });
-
+  /* ---------------- FIRESTORE: SHOPS ---------------- */
   useEffect(() => {
-  const unsub = onSnapshot(collection(db, "shops"), (snapshot) => {
-    const data = snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    })) as Shop[];
+    const unsub = onSnapshot(collection(db, 'shops'), (snapshot) => {
+      const data = snapshot.docs.map(doc => ({
+        id: doc.id,
+        updates: [],
+        ...doc.data(),
+      })) as Shop[];
 
-    setShops(data);
-  });
+      setShops(data);
+    });
 
-  return () => unsub();
-}, []);
+    return () => unsub();
+  }, []);
 
-
-  useEffect(() => {
-    localStorage.setItem('fs_tasks', JSON.stringify(tasks));
-  }, [tasks]);
-
+  /* ---------------- LOCATIONS ---------------- */
   const uniqueLocations = useMemo(
     () => Array.from(new Set(shops.map(s => s.location).filter(Boolean))),
     [shops]
   );
 
   /* ---------------- SHOP LOGIC ---------------- */
+  const addShop = async (
+  newShop: Omit<Shop, 'id' | 'updates'>,
+  initialNote?: string
+) => {
+  try {
+    await addDoc(collection(db, 'shops'), {
+      ...newShop,
+      updates: initialNote
+        ? [
+            {
+              id: crypto.randomUUID(),
+              timestamp: new Date().toISOString(),
+              note: initialNote,
+            },
+          ]
+        : [],
+      createdAt: new Date(),
+    });
+  } catch (err) {
+    console.error('Error adding shop:', err);
+    alert('Failed to add shop');
+  }
+};
 
-  const addShop = (newShop: Omit<Shop, 'id' | 'updates'>, initialNote?: string) => {
-    const id = crypto.randomUUID();
-    const updates: Update[] = initialNote
-      ? [{ id: crypto.randomUUID(), timestamp: new Date().toISOString(), note: initialNote }]
-      : [];
 
-    setShops(prev => [...prev, { ...newShop, id, updates }]);
-  };
-
-  const updateShop = (shopId: string, updates: Partial<Shop>) =>
-    setShops(prev => prev.map(s => (s.id === shopId ? { ...s, ...updates } : s)));
-
-  const deleteShop = (shopId: string) => {
-    if (!confirm('Delete everything?')) return;
-    setShops(prev => prev.filter(s => s.id !== shopId));
-    setTasks(prev => prev.filter(t => t.shopId !== shopId));
-    setSelectedShopId(null);
-  };
-
-  const addUpdate = (shopId: string, note: string) => {
-    const update: Update = {
+  const updateShop = () => {};
+  const deleteShop = () => {};
+  const addUpdate = async (shopId: string, note: string) => {
+  try {
+    const update = {
       id: crypto.randomUUID(),
       timestamp: new Date().toISOString(),
       note,
     };
 
-    setShops(prev =>
-      prev.map(s =>
-        s.id === shopId ? { ...s, updates: [update, ...s.updates] } : s
-      )
-    );
-  };
+    const shopRef = doc(db, 'shops', shopId);
 
-  /* ---------------- TASK LOGIC ---------------- */
+    await updateDoc(shopRef, {
+      updates: arrayUnion(update),
+    });
+  } catch (err) {
+    console.error('Error adding update:', err);
+    alert('Failed to save update');
+  }
+};
 
-  const addTask = (shopId: string, type: TaskType, dueDate: string, note?: string) => {
-    setTasks(prev => [
-      ...prev,
-      {
-        id: crypto.randomUUID(),
-        shopId,
-        type,
-        dueDate,
-        status: TaskStatus.PENDING,
-        note,
-      },
-    ]);
-  };
+  /* ---------------- TASK LOGIC (LOCAL FOR NOW) ---------------- */
+  const addTask = async (
+  shopId: string,
+  type: TaskType,
+  dueDate: string,
+  note?: string
+) => {
+  await addDoc(collection(db, "tasks"), {
+    shopId,
+    type,
+    dueDate,
+    status: TaskStatus.PENDING,
+    note: note || "",
+    createdAt: serverTimestamp(),
+  });
+};
 
-  const updateTask = (taskId: string, updates: Partial<Task>) =>
-    setTasks(prev => prev.map(t => (t.id === taskId ? { ...t, ...updates } : t)));
 
-  const deleteTask = (taskId: string) =>
-    setTasks(prev => prev.filter(t => t.id !== taskId));
+    useEffect(() => {
+  const unsub = onSnapshot(collection(db, "tasks"), (snapshot) => {
+    const data = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    })) as Task[];
+
+    setTasks(data);
+  });
+
+  return () => unsub();
+}, []);
+
+
+  const updateTask = async (taskId: string, updates: Partial<Task>) => {
+  await updateDoc(doc(db, "tasks", taskId), updates);
+};
+
+
+ const deleteTask = async (taskId: string) => {
+  await deleteDoc(doc(db, "tasks", taskId));
+};
+
 
   const activeShop = useMemo(
     () => shops.find(s => s.id === selectedShopId) || null,
