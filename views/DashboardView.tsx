@@ -49,6 +49,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <h2 className="text-3xl font-extrabold text-black tracking-tight">
             Today&apos;s Agenda
           </h2>
+          
           <p className="text-black opacity-60 mt-1">
             Pending tasks and missed follow-ups.
           </p>

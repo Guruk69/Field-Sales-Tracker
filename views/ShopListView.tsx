@@ -27,7 +27,9 @@ export const ShopListView: React.FC<ShopListViewProps> = ({ shops, tasks, onAddS
   const filteredShops = useMemo(() => {
     return shops.filter(shop => {
       const matchesStatus = filterStatus === 'all' || shop.status === filterStatus;
-      const matchesLocation = !filterLocation || shop.location.toLowerCase().includes(filterLocation.toLowerCase());
+      const matchesLocation = !filterLocation ||
+  (shop.location &&
+    shop.location.toLowerCase().includes(filterLocation.toLowerCase()));
       const shopTasks = tasks.filter(t => t.shopId === shop.id);
       const hasPendingOrOverdue = shopTasks.some(t => {
         const effStatus = getEffectiveTaskStatus(t);
