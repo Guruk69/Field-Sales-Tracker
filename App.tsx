@@ -143,8 +143,29 @@ const App: React.FC = () => {
     [shops, selectedShopId]
   );
 
+  const testFirestore = async () => {
+    try {
+      await addDoc(collection(db, "test"), {
+        message: "Firebase connected successfully",
+        createdAt: new Date(),
+      });
+      alert("Firestore write successful!");
+    } catch (err) {
+      console.error(err);
+      alert("Firestore write failed");
+    }
+  };
+
+
   return (
     <div className="min-h-screen bg-gray-50 pb-20 md:pb-0 md:pt-16">
+      <button
+        onClick={testFirestore}
+        className="bg-blue-600 text-white px-4 py-2 rounded"
+      >
+        Test Firestore
+      </button>
+
       <Navbar
         activeTab={activeTab}
         setActiveTab={(tab) => {
@@ -166,6 +187,7 @@ const App: React.FC = () => {
               setActiveTab('shops');
             }}
             onOpenCreateTask={() => setShowCreateTask(true)}
+
           />
         )}
 
