@@ -51,91 +51,91 @@ const App: React.FC = () => {
 
   /* ---------------- SHOP LOGIC ---------------- */
   const addShop = async (
-  newShop: Omit<Shop, 'id' | 'updates'>,
-  initialNote?: string
-) => {
-  try {
-    await addDoc(collection(db, 'shops'), {
-      ...newShop,
-      updates: initialNote
-        ? [
+    newShop: Omit<Shop, 'id' | 'updates'>,
+    initialNote?: string
+  ) => {
+    try {
+      await addDoc(collection(db, 'shops'), {
+        ...newShop,
+        updates: initialNote
+          ? [
             {
               id: crypto.randomUUID(),
               timestamp: new Date().toISOString(),
               note: initialNote,
             },
           ]
-        : [],
-      createdAt: new Date(),
-    });
-  } catch (err) {
-    console.error('Error adding shop:', err);
-    alert('Failed to add shop');
-  }
-};
+          : [],
+        createdAt: new Date(),
+      });
+    } catch (err) {
+      console.error('Error adding shop:', err);
+      alert('Failed to add shop');
+    }
+  };
 
 
-  const updateShop = () => {};
-  const deleteShop = () => {};
+  const updateShop = () => { };
+  const deleteShop = () => { };
   const addUpdate = async (shopId: string, note: string) => {
-  try {
-    const update = {
-      id: crypto.randomUUID(),
-      timestamp: new Date().toISOString(),
-      note,
-    };
+    try {
+      const update = {
+        id: crypto.randomUUID(),
+        timestamp: new Date().toISOString(),
+        note,
+      };
 
-    const shopRef = doc(db, 'shops', shopId);
+      const shopRef = doc(db, 'shops', shopId);
 
-    await updateDoc(shopRef, {
-      updates: arrayUnion(update),
-    });
-  } catch (err) {
-    console.error('Error adding update:', err);
-    alert('Failed to save update');
-  }
-};
+      await updateDoc(shopRef, {
+        updates: arrayUnion(update),
+      });
+    } catch (err) {
+      console.error('Error adding update:', err);
+      alert('Failed to save update');
+    }
+  };
 
   /* ---------------- TASK LOGIC (LOCAL FOR NOW) ---------------- */
   const addTask = async (
-  shopId: string,
-  type: TaskType,
-  dueDate: string,
-  note?: string
-) => {
-  await addDoc(collection(db, "tasks"), {
-    shopId,
-    type,
-    dueDate,
-    status: TaskStatus.PENDING,
-    note: note || "",
-    createdAt: serverTimestamp(),
-  });
-};
+    shopId: string,
+    type: TaskType,
+    dueDate: string,
+    note?: string
+  ) => {
+    await addDoc(collection(db, "tasks"), {
+      shopId,
+      type,
+      dueDate,
+      status: TaskStatus.PENDING,
+      note: note || "",
+      createdAt: serverTimestamp(),
+    });
+  };
 
 
-    useEffect(() => {
-  const unsub = onSnapshot(collection(db, "tasks"), (snapshot) => {
-    const data = snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    })) as Task[];
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, "tasks"), (snapshot) => {
+      const data = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as Task[];
 
-    setTasks(data);
-  });
+      setTasks(data);
+    });
 
-  return () => unsub();
-}, []);
+    return () => unsub();
+  }, []);
 
 
   const updateTask = async (taskId: string, updates: Partial<Task>) => {
-  await updateDoc(doc(db, "tasks", taskId), updates);
-};
+    await updateDoc(doc(db, "tasks", taskId), updates);
+  };
 
 
- const deleteTask = async (taskId: string) => {
-  await deleteDoc(doc(db, "tasks", taskId));
-};
+  const deleteTask = async (taskId: string) => {
+    await deleteDoc(doc(db, "tasks", taskId));
+  };
 
 
   const activeShop = useMemo(
@@ -156,10 +156,81 @@ const App: React.FC = () => {
     }
   };
 
+  const migrateLocalDataToFirestore = async () => {
+    const rawShops = localStorage.getItem('fs_shops');
+    const rawTasks = localStorage.getItem('fs_tasks');
+
+    if (!rawShops && !rawTasks) {
+      alert('No local data found on this device');
+      return;
+    }
+
+    const shops = rawShops ? JSON.parse(rawShops) : [];
+    const tasks = rawTasks ? JSON.parse(rawTasks) : [];
+
+    if (shops.length === 0 && tasks.length === 0) {
+      alert('Local data is empty');
+      return;
+    }
+
+    const confirmMigration = window.confirm(
+      `⚠️ ONE-TIME MIGRATION\n\n` +
+      `Shops: ${shops.length}\n` +
+      `Tasks: ${tasks.length}\n\n` +
+      `This should be done ONLY ONCE.\n\nProceed?`
+    );
+
+    if (!confirmMigration) return;
+
+    try {
+      /* ---------- MIGRATE SHOPS ---------- */
+      for (const shop of shops) {
+        const { id, updates, ...shopData } = shop;
+
+        await addDoc(collection(db, 'shops'), {
+          ...shopData,
+          createdAt: serverTimestamp(),
+        });
+      }
+
+      /* ---------- MIGRATE TASKS ---------- */
+      for (const task of tasks) {
+        const { id, ...taskData } = task;
+
+        await addDoc(collection(db, 'tasks'), {
+          ...taskData,
+          createdAt: serverTimestamp(),
+        });
+      }
+
+      alert('✅ Shops and Tasks migrated successfully');
+    } catch (err) {
+      console.error(err);
+      alert('❌ Migration failed. Check console.');
+    }
+  };
+
+
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20 md:pb-0 md:pt-16">
-      
+
+      <button
+        onClick={migrateLocalDataToFirestore}
+        style={{
+          position: 'fixed',
+          bottom: '20px',
+          right: '20px',
+          background: 'red',
+          color: 'white',
+          padding: '12px 16px',
+          borderRadius: '8px',
+          fontWeight: 'bold',
+          zIndex: 9999,
+        }}
+      >
+        ⚠️ Sync Old Data (ONE TIME)
+      </button>
 
       <Navbar
         activeTab={activeTab}
