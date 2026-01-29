@@ -75,8 +75,30 @@ const App: React.FC = () => {
   };
 
 
-  const updateShop = () => { };
-  const deleteShop = () => { };
+  const updateShop = async (shopId: string, updates: Partial<Shop>) => {
+  try {
+    const shopRef = doc(db, "shops", shopId);
+    await updateDoc(shopRef, {
+      ...updates,
+      updatedAt: new Date(),
+    });
+  } catch (err) {
+    console.error("Error updating shop:", err);
+    alert("Failed to update shop");
+  }
+};
+  
+const deleteShop = async (shopId: string) => {
+  if (!confirm("Delete this shop permanently?")) return;
+
+  try {
+    await deleteDoc(doc(db, "shops", shopId));
+    setSelectedShopId(null);
+  } catch (err) {
+    console.error("Error deleting shop:", err);
+    alert("Failed to delete shop");
+  }
+};
   const addUpdate = async (shopId: string, note: string) => {
     try {
       const update = {
@@ -156,66 +178,66 @@ const App: React.FC = () => {
     }
   };
 
-  const migrateLocalDataToFirestore = async () => {
-    const rawShops = localStorage.getItem('fs_shops');
-    const rawTasks = localStorage.getItem('fs_tasks');
+  // const migrateLocalDataToFirestore = async () => {
+  //   const rawShops = localStorage.getItem('fs_shops');
+  //   const rawTasks = localStorage.getItem('fs_tasks');
 
-    if (!rawShops && !rawTasks) {
-      alert('No local data found on this device');
-      return;
-    }
+  //   if (!rawShops && !rawTasks) {
+  //     alert('No local data found on this device');
+  //     return;
+  //   }
 
-    const shops = rawShops ? JSON.parse(rawShops) : [];
-    const tasks = rawTasks ? JSON.parse(rawTasks) : [];
+  //   const shops = rawShops ? JSON.parse(rawShops) : [];
+  //   const tasks = rawTasks ? JSON.parse(rawTasks) : [];
 
-    if (shops.length === 0 && tasks.length === 0) {
-      alert('Local data is empty');
-      return;
-    }
+  //   if (shops.length === 0 && tasks.length === 0) {
+  //     alert('Local data is empty');
+  //     return;
+  //   }
 
-    const confirmMigration = window.confirm(
-      `⚠️ ONE-TIME MIGRATION\n\n` +
-      `Shops: ${shops.length}\n` +
-      `Tasks: ${tasks.length}\n\n` +
-      `This should be done ONLY ONCE.\n\nProceed?`
-    );
+  //   const confirmMigration = window.confirm(
+  //     `⚠️ ONE-TIME MIGRATION\n\n` +
+  //     `Shops: ${shops.length}\n` +
+  //     `Tasks: ${tasks.length}\n\n` +
+  //     `This should be done ONLY ONCE.\n\nProceed?`
+  //   );
 
-    if (!confirmMigration) return;
+  //   if (!confirmMigration) return;
 
-    try {
-      /* ---------- MIGRATE SHOPS ---------- */
-      for (const shop of shops) {
-        const { id, updates, ...shopData } = shop;
+  //   try {
+  //     /* ---------- MIGRATE SHOPS ---------- */
+  //     for (const shop of shops) {
+  //       const { id, updates, ...shopData } = shop;
 
-        await addDoc(collection(db, 'shops'), {
-          ...shopData,
-          createdAt: serverTimestamp(),
-        });
-      }
+  //       await addDoc(collection(db, 'shops'), {
+  //         ...shopData,
+  //         createdAt: serverTimestamp(),
+  //       });
+  //     }
 
-      /* ---------- MIGRATE TASKS ---------- */
-      for (const task of tasks) {
-        const { id, ...taskData } = task;
+  //     /* ---------- MIGRATE TASKS ---------- */
+  //     for (const task of tasks) {
+  //       const { id, ...taskData } = task;
 
-        await addDoc(collection(db, 'tasks'), {
-          ...taskData,
-          createdAt: serverTimestamp(),
-        });
-      }
+  //       await addDoc(collection(db, 'tasks'), {
+  //         ...taskData,
+  //         createdAt: serverTimestamp(),
+  //       });
+  //     }
 
-      alert('✅ Shops and Tasks migrated successfully');
-    } catch (err) {
-      console.error(err);
-      alert('❌ Migration failed. Check console.');
-    }
-  };
+  //     alert('✅ Shops and Tasks migrated successfully');
+  //   } catch (err) {
+  //     console.error(err);
+  //     alert('❌ Migration failed. Check console.');
+  //   }
+  // };
 
 
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20 md:pb-0 md:pt-16">
 
-      <button
+      {/* <button
         onClick={migrateLocalDataToFirestore}
         style={{
           position: 'fixed',
@@ -230,7 +252,7 @@ const App: React.FC = () => {
         }}
       >
         ⚠️ Sync Old Data (ONE TIME)
-      </button>
+      </button> */}
 
       <Navbar
         activeTab={activeTab}
