@@ -42,9 +42,9 @@ export const ShopListView: React.FC<ShopListViewProps> = ({ shops, tasks, onAddS
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const cleanPhone = newPhone.trim();
-    if (!cleanPhone) return alert('Phone number is required');
-    if (shops.some(s => s.phoneNumber === cleanPhone)) return alert('Phone number must be unique');
+    const cleanPhone = newPhone.trim(); 
+    // if (!cleanPhone) return alert('Phone number is required');
+    // if (shops.some(s => s.phoneNumber === cleanPhone)) return alert('Phone number must be unique');
 
     onAddShop({
       name: newName.trim(),
@@ -86,8 +86,8 @@ export const ShopListView: React.FC<ShopListViewProps> = ({ shops, tasks, onAddS
                 <input type="text" value={newOwner} onChange={e => setNewOwner(e.target.value)} className="mt-1 block w-full rounded-xl border-gray-200 border p-3 shadow-sm focus:border-black focus:ring-black text-black bg-white" placeholder="Optional" />
               </div>
               <div>
-                <label className="block text-[11px] font-bold text-black opacity-60 uppercase tracking-widest">Phone Number *</label>
-                <input required type="tel" value={newPhone} onChange={e => setNewPhone(e.target.value)} className="mt-1 block w-full rounded-xl border-gray-200 border p-3 shadow-sm focus:border-black focus:ring-black text-black bg-white" placeholder="Unique ID" />
+                <label className="block text-[11px] font-bold text-black opacity-60 uppercase tracking-widest">Phone Number</label>
+                <input type="tel" value={newPhone} onChange={e => setNewPhone(e.target.value)} className="mt-1 block w-full rounded-xl border-gray-200 border p-3 shadow-sm focus:border-black focus:ring-black text-black bg-white" placeholder="Unique ID" />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
