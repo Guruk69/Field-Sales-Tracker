@@ -1,15 +1,35 @@
 import React, { useMemo } from 'react';
 import { Task, Shop, TaskStatus } from '../types';
 import { isToday, isOverdue } from '../utils';
-// import { testFirestore} from '../App.tsx'
 
 interface DashboardViewProps {
   tasks: Task[];
   shops: Shop[];
   onTaskStatusChange: (id: string, status: TaskStatus) => void;
   onShopSelect: (id: string) => void;
-  onOpenCreateTask: () => void; // 👈 for modal
+  onOpenCreateTask: () => void;
 }
+
+/* ✅ SORT HELPER (Dashboard-only logic) */
+const sortTasksByDueDate = (tasks: Task[]) => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  return [...tasks].sort((a, b) => {
+    const dateA = new Date(a.dueDate);
+    const dateB = new Date(b.dueDate);
+
+    const overdueA = dateA < today;
+    const overdueB = dateB < today;
+
+    // 1️⃣ Overdue first
+    if (overdueA && !overdueB) return -1;
+    if (!overdueA && overdueB) return 1;
+
+    // 2️⃣ Then by due date
+    return dateA.getTime() - dateB.getTime();
+  });
+};
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
   tasks,
@@ -20,9 +40,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 }) => {
   const groupedTasks = useMemo(() => {
     const relevant = tasks.filter(
-      (t) =>
-        // (isToday(t.dueDate)|| isOverdue(t.dueDate, t.status)) &&
-        t.status !== TaskStatus.COMPLETED
+      (t) => t.status !== TaskStatus.COMPLETED
     );
 
     const groups: Record<string, { shop: Shop; tasks: Task[] }> = {};
@@ -37,8 +55,17 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       groups[task.shopId]?.tasks.push(task);
     });
 
-    return Object.values(groups).sort((a, b) =>
-      a.shop.name.localeCompare(b.shop.name)
+    // ✅ SORT TASKS INSIDE EACH SHOP
+    Object.values(groups).forEach((group) => {
+      group.tasks = sortTasksByDueDate(group.tasks);
+    });
+
+    // Optional: sort shops alphabetically
+    return Object.values(groups).sort((a, b) => {
+      const aDate = new Date(a.tasks[0].dueDate).getTime();
+      const bDate = new Date(b.tasks[0].dueDate).getTime();
+      return aDate - bDate;
+    }
     );
   }, [tasks, shops]);
 
@@ -50,13 +77,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <h2 className="text-3xl font-extrabold text-black tracking-tight">
             Today&apos;s Agenda
           </h2>
-          
           <p className="text-black opacity-60 mt-1">
             Pending tasks and missed follow-ups.
           </p>
         </div>
-       
-
 
         <button
           onClick={onOpenCreateTask}
@@ -69,23 +93,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       {/* EMPTY STATE */}
       {groupedTasks.length === 0 ? (
         <div className="bg-white rounded-2xl p-10 text-center border-2 border-dashed border-gray-200">
-          <div className="bg-green-100 text-black w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg
-              className="w-8 h-8"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2.5"
-                d="M5 13l4 4L19 7"
-              />
+          <div className="bg-green-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
             </svg>
           </div>
-          <h3 className="text-xl font-bold text-black">Clear Schedule</h3>
-          <p className="text-black opacity-50 mt-2">
+          <h3 className="text-xl font-bold">Clear Schedule</h3>
+          <p className="opacity-50 mt-2">
             No tasks due today or overdue.
           </p>
         </div>
@@ -99,29 +113,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               {/* SHOP HEADER */}
               <button
                 onClick={() => onShopSelect(group.shop.id)}
-                className="w-full text-left bg-gray-50/50 px-5 py-3 border-b border-gray-100 flex justify-between items-center group"
+                className="w-full text-left bg-gray-50 px-5 py-3 border-b border-gray-100 flex justify-between items-center"
               >
                 <div>
-                  <h4 className="font-bold text-black group-hover:text-blue-600 transition-colors">
-                    {group.shop.name}
-                  </h4>
-                  <p className="text-[10px] text-black opacity-60 font-mono uppercase tracking-widest">
+                  <h4 className="font-bold">{group.shop.name}</h4>
+                  <p className="text-[10px] opacity-60 font-mono uppercase tracking-widest">
                     {group.shop.location}
                   </p>
                 </div>
-                <svg
-                  className="w-4 h-4 text-black opacity-30 group-hover:opacity-100 transition-colors"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2.5"
-                    d="M9 5l7 7-7 7"
-                  />
-                </svg>
+                <span className="opacity-40">›</span>
               </button>
 
               {/* TASKS */}
@@ -132,7 +132,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   return (
                     <div
                       key={task.id}
-                      className="px-5 py-4 flex items-start gap-4 hover:bg-gray-50/30 transition-colors text-black"
+                      className="px-5 py-4 flex items-start gap-4 hover:bg-gray-50"
                     >
                       <input
                         type="checkbox"
@@ -145,28 +145,28 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                               : TaskStatus.PENDING
                           )
                         }
-                        className="w-5 h-5 rounded-md border-gray-300 text-black focus:ring-black cursor-pointer mt-1"
+                        className="w-5 h-5 mt-1 cursor-pointer"
                       />
 
-                      <div className="flex-1 flex flex-col">
+                      <div className="flex-1">
                         <div className="flex items-center gap-2">
                           <span className="font-semibold">{task.type}</span>
                           {overdue && (
-                            <span className="bg-red-50 text-black text-[10px] px-1.5 py-0.5 rounded-md font-bold uppercase border border-red-100">
+                            <span className="bg-red-50 text-red-700 text-[10px] px-1.5 py-0.5 rounded-md font-bold uppercase">
                               Overdue
                             </span>
                           )}
                         </div>
 
                         {task.note && (
-                          <span className="text-xs text-black opacity-60 mt-0.5">
+                          <p className="text-xs opacity-60 mt-0.5">
                             {task.note}
-                          </span>
+                          </p>
                         )}
 
-                        <span className="text-xs text-black opacity-60 mt-1">
+                        <p className="text-xs opacity-60 mt-1">
                           Due: {task.dueDate}
-                        </span>
+                        </p>
                       </div>
                     </div>
                   );
