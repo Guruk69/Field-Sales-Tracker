@@ -5,6 +5,7 @@ import { ShopListView } from './views/ShopListView';
 import { ShopDetailView } from './views/ShopDetailView';
 import { Navbar } from './components/Navbar';
 import { CreateTaskModal } from './components/__temp';
+import { StatsDashboardView } from './views/StatsDashboardView';
 // import { doc, updateDoc, arrayUnion } from 'firebase/firestore';
 // import { collection, addDoc, onSnapshot } from 'firebase/firestore';
 import { db } from './src/firebase';
@@ -20,7 +21,7 @@ import {
 } from "firebase/firestore";
 
 const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'shops'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'shops' | 'stats'>('dashboard');
   const [selectedShopId, setSelectedShopId] = useState<string | null>(null);
   const [showCreateTask, setShowCreateTask] = useState(false);
 
@@ -33,15 +34,17 @@ const App: React.FC = () => {
     const unsub = onSnapshot(collection(db, 'shops'), (snapshot) => {
       const data = snapshot.docs.map(doc => ({
         id: doc.id,
-        updates: [],
-        ...doc.data(),
+        ...(doc.data() as Omit<Shop, 'id'>),
+        updates: doc.data().updates || [],
       })) as Shop[];
+
 
       setShops(data);
     });
 
     return () => unsub();
   }, []);
+
 
   /* ---------------- LOCATIONS ---------------- */
   const uniqueLocations = useMemo(
@@ -76,29 +79,29 @@ const App: React.FC = () => {
 
 
   const updateShop = async (shopId: string, updates: Partial<Shop>) => {
-  try {
-    const shopRef = doc(db, "shops", shopId);
-    await updateDoc(shopRef, {
-      ...updates,
-      updatedAt: new Date(),
-    });
-  } catch (err) {
-    console.error("Error updating shop:", err);
-    alert("Failed to update shop");
-  }
-};
-  
-const deleteShop = async (shopId: string) => {
-  if (!confirm("Delete this shop permanently?")) return;
+    try {
+      const shopRef = doc(db, "shops", shopId);
+      await updateDoc(shopRef, {
+        ...updates,
+        updatedAt: new Date(),
+      });
+    } catch (err) {
+      console.error("Error updating shop:", err);
+      alert("Failed to update shop");
+    }
+  };
 
-  try {
-    await deleteDoc(doc(db, "shops", shopId));
-    setSelectedShopId(null);
-  } catch (err) {
-    console.error("Error deleting shop:", err);
-    alert("Failed to delete shop");
-  }
-};
+  const deleteShop = async (shopId: string) => {
+    if (!confirm("Delete this shop permanently?")) return;
+
+    try {
+      await deleteDoc(doc(db, "shops", shopId));
+      setSelectedShopId(null);
+    } catch (err) {
+      console.error("Error deleting shop:", err);
+      alert("Failed to delete shop");
+    }
+  };
   const addUpdate = async (shopId: string, note: string) => {
     try {
       const update = {
@@ -258,7 +261,8 @@ const deleteShop = async (shopId: string) => {
         activeTab={activeTab}
         setActiveTab={(tab) => {
           setActiveTab(tab);
-          if (tab === 'dashboard') setSelectedShopId(null);
+          if (tab !== 'shops') setSelectedShopId(null);
+
         }}
       />
 
@@ -276,6 +280,13 @@ const deleteShop = async (shopId: string) => {
             }}
             onOpenCreateTask={() => setShowCreateTask(true)}
 
+          />
+        )}
+
+        {activeTab === 'stats' && (
+          <StatsDashboardView
+            shops={shops}
+            tasks={tasks}
           />
         )}
 
