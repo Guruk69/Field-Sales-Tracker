@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Shop, Task, TaskType, TaskStatus, Update } from './types';
+import { Shop, Task, TaskType, TaskStatus } from './types';
 import { DashboardView } from './views/DashboardView';
 import { ShopListView } from './views/ShopListView';
 import { ShopDetailView } from './views/ShopDetailView';
 import { Navbar } from './components/Navbar';
 import { CreateTaskModal } from './components/__temp';
 import { StatsDashboardView } from './views/StatsDashboardView';
-// import { doc, updateDoc, arrayUnion } from 'firebase/firestore';
-// import { collection, addDoc, onSnapshot } from 'firebase/firestore';
+import  LoginView  from './views/LoginView';
+
 import { db } from './src/firebase';
 import {
   collection,
@@ -21,13 +21,21 @@ import {
 } from "firebase/firestore";
 
 const App: React.FC = () => {
+
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
   const [activeTab, setActiveTab] = useState<'dashboard' | 'shops' | 'stats'>('dashboard');
   const [selectedShopId, setSelectedShopId] = useState<string | null>(null);
   const [showCreateTask, setShowCreateTask] = useState(false);
 
-  // 🔥 SINGLE SOURCE OF TRUTH
   const [shops, setShops] = useState<Shop[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
+
+  // ✅ Check token on load
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (token) setIsAuthenticated(true);
+  }, []);
 
   /* ---------------- FIRESTORE: SHOPS ---------------- */
   useEffect(() => {
@@ -38,13 +46,11 @@ const App: React.FC = () => {
         updates: doc.data().updates || [],
       })) as Shop[];
 
-
       setShops(data);
     });
 
     return () => unsub();
   }, []);
-
 
   /* ---------------- LOCATIONS ---------------- */
   const uniqueLocations = useMemo(
@@ -53,81 +59,43 @@ const App: React.FC = () => {
   );
 
   /* ---------------- SHOP LOGIC ---------------- */
-  const addShop = async (
-    newShop: Omit<Shop, 'id' | 'updates'>,
-    initialNote?: string
-  ) => {
-    try {
-      await addDoc(collection(db, 'shops'), {
-        ...newShop,
-        updates: initialNote
-          ? [
-            {
-              id: crypto.randomUUID(),
-              timestamp: new Date().toISOString(),
-              note: initialNote,
-            },
-          ]
-          : [],
-        createdAt: new Date(),
-      });
-    } catch (err) {
-      console.error('Error adding shop:', err);
-      alert('Failed to add shop');
-    }
+  const addShop = async (newShop: Omit<Shop, 'id' | 'updates'>, initialNote?: string) => {
+    await addDoc(collection(db, 'shops'), {
+      ...newShop,
+      updates: initialNote
+        ? [{
+            id: crypto.randomUUID(),
+            timestamp: new Date().toISOString(),
+            note: initialNote,
+          }]
+        : [],
+      createdAt: new Date(),
+    });
   };
 
-
   const updateShop = async (shopId: string, updates: Partial<Shop>) => {
-    try {
-      const shopRef = doc(db, "shops", shopId);
-      await updateDoc(shopRef, {
-        ...updates,
-        updatedAt: new Date(),
-      });
-    } catch (err) {
-      console.error("Error updating shop:", err);
-      alert("Failed to update shop");
-    }
+    await updateDoc(doc(db, "shops", shopId), updates);
   };
 
   const deleteShop = async (shopId: string) => {
-    if (!confirm("Delete this shop permanently?")) return;
-
-    try {
-      await deleteDoc(doc(db, "shops", shopId));
-      setSelectedShopId(null);
-    } catch (err) {
-      console.error("Error deleting shop:", err);
-      alert("Failed to delete shop");
-    }
+    await deleteDoc(doc(db, "shops", shopId));
+    setSelectedShopId(null);
   };
+
   const addUpdate = async (shopId: string, note: string) => {
-    try {
-      const update = {
-        id: crypto.randomUUID(),
-        timestamp: new Date().toISOString(),
-        note,
-      };
+    const update = {
+      id: crypto.randomUUID(),
+      timestamp: new Date().toISOString(),
+      note,
+    };
 
-      const shopRef = doc(db, 'shops', shopId);
-
-      await updateDoc(shopRef, {
-        updates: arrayUnion(update),
-      });
-    } catch (err) {
-      console.error('Error adding update:', err);
-      alert('Failed to save update');
-    }
+    await updateDoc(doc(db, 'shops', shopId), {
+      updates: arrayUnion(update),
+    });
   };
 
-  /* ---------------- TASK LOGIC (LOCAL FOR NOW) ---------------- */
-  const addTask = async (
-    shopId: string,
-    type: TaskType,
-    dueDate: string,
-    note?: string
-  ) => {
+  /* ---------------- TASK LOGIC ---------------- */
+  const addTask = async (shopId: string, type: TaskType, dueDate: string, note?: string) => {
     await addDoc(collection(db, "tasks"), {
       shopId,
       type,
@@ -137,7 +105,6 @@ const App: React.FC = () => {
       createdAt: serverTimestamp(),
     });
   };
-
 
   useEffect(() => {
     const unsub = onSnapshot(collection(db, "tasks"), (snapshot) => {
@@ -152,121 +119,43 @@ const App: React.FC = () => {
     return () => unsub();
   }, []);
 
-
   const updateTask = async (taskId: string, updates: Partial<Task>) => {
     await updateDoc(doc(db, "tasks", taskId), updates);
   };
 
-
   const deleteTask = async (taskId: string) => {
     await deleteDoc(doc(db, "tasks", taskId));
   };
-
 
   const activeShop = useMemo(
     () => shops.find(s => s.id === selectedShopId) || null,
     [shops, selectedShopId]
   );
 
-  const testFirestore = async () => {
-    try {
-      await addDoc(collection(db, "test"), {
-        message: "Firebase connected successfully",
-        createdAt: new Date(),
-      });
-      alert("Firestore write successful!");
-    } catch (err) {
-      console.error(err);
-      alert("Firestore write failed");
-    }
-  };
-
-  // const migrateLocalDataToFirestore = async () => {
-  //   const rawShops = localStorage.getItem('fs_shops');
-  //   const rawTasks = localStorage.getItem('fs_tasks');
-
-  //   if (!rawShops && !rawTasks) {
-  //     alert('No local data found on this device');
-  //     return;
-  //   }
-
-  //   const shops = rawShops ? JSON.parse(rawShops) : [];
-  //   const tasks = rawTasks ? JSON.parse(rawTasks) : [];
-
-  //   if (shops.length === 0 && tasks.length === 0) {
-  //     alert('Local data is empty');
-  //     return;
-  //   }
-
-  //   const confirmMigration = window.confirm(
-  //     `⚠️ ONE-TIME MIGRATION\n\n` +
-  //     `Shops: ${shops.length}\n` +
-  //     `Tasks: ${tasks.length}\n\n` +
-  //     `This should be done ONLY ONCE.\n\nProceed?`
-  //   );
-
-  //   if (!confirmMigration) return;
-
-  //   try {
-  //     /* ---------- MIGRATE SHOPS ---------- */
-  //     for (const shop of shops) {
-  //       const { id, updates, ...shopData } = shop;
-
-  //       await addDoc(collection(db, 'shops'), {
-  //         ...shopData,
-  //         createdAt: serverTimestamp(),
-  //       });
-  //     }
-
-  //     /* ---------- MIGRATE TASKS ---------- */
-  //     for (const task of tasks) {
-  //       const { id, ...taskData } = task;
-
-  //       await addDoc(collection(db, 'tasks'), {
-  //         ...taskData,
-  //         createdAt: serverTimestamp(),
-  //       });
-  //     }
-
-  //     alert('✅ Shops and Tasks migrated successfully');
-  //   } catch (err) {
-  //     console.error(err);
-  //     alert('❌ Migration failed. Check console.');
-  //   }
-  // };
-
-
+  // 🚀 AUTH CHECK
+  if (!isAuthenticated) {
+    return (
+      <LoginView onLogin={() => setIsAuthenticated(true)} />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20 md:pb-0 md:pt-16">
-
-      {/* <button
-        onClick={migrateLocalDataToFirestore}
-        style={{
-          position: 'fixed',
-          bottom: '20px',
-          right: '20px',
-          background: 'red',
-          color: 'white',
-          padding: '12px 16px',
-          borderRadius: '8px',
-          fontWeight: 'bold',
-          zIndex: 9999,
-        }}
-      >
-        ⚠️ Sync Old Data (ONE TIME)
-      </button> */}
 
       <Navbar
         activeTab={activeTab}
         setActiveTab={(tab) => {
           setActiveTab(tab);
           if (tab !== 'shops') setSelectedShopId(null);
-
+        }}
+        onLogout={() => {
+          localStorage.removeItem("token");
+          setIsAuthenticated(false);
         }}
       />
 
       <main className="max-w-xl mx-auto px-4 py-6">
+
         {activeTab === 'dashboard' && (
           <DashboardView
             tasks={tasks}
@@ -279,15 +168,11 @@ const App: React.FC = () => {
               setActiveTab('shops');
             }}
             onOpenCreateTask={() => setShowCreateTask(true)}
-
           />
         )}
 
         {activeTab === 'stats' && (
-          <StatsDashboardView
-            shops={shops}
-            tasks={tasks}
-          />
+          <StatsDashboardView shops={shops} tasks={tasks} />
         )}
 
         {showCreateTask && (
@@ -321,6 +206,7 @@ const App: React.FC = () => {
             onDeleteTask={deleteTask}
           />
         )}
+
       </main>
     </div>
   );
