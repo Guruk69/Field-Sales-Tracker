@@ -35,7 +35,7 @@ export const ShopDetailView: React.FC<ShopDetailViewProps> = ({
     e.preventDefault();
     if (!newNote.trim()) return;
     onAddUpdate(shop.id, newNote.trim());
-    setNewNote(e.target.value);
+    setNewNote('');
   };
 
   const handleAddTask = (e: React.FormEvent) => {
